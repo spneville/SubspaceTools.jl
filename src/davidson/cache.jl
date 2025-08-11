@@ -104,11 +104,13 @@ mutable struct DavidsonCache{T, R} <: Cache where {T<:AllowedTypes,
         # Twork array offsets
         bvec_start, sigvec_start, Gmat_start, alpha_start,
         work2_start, work3_start, work4_start,
-        evwork_start = Twork_offsets(matdim, blocksize, maxvec)
+        evwork_start = davidson_Twork_offsets(matdim, blocksize,
+                                              maxvec)
         
         # Rwork array offsets
         rho_start, rho1_start, rnorm_start, work1_start,
-        revwork_start = Rwork_offsets(matdim, blocksize, maxvec)
+        revwork_start = davidson_Rwork_offsets(matdim, blocksize,
+                                               maxvec)
         
         new{T, R}(T, f, diag, nroots, matdim, blocksize, maxvec, tol,
                   niter, currdim, nconv, nnew,
@@ -123,7 +125,7 @@ mutable struct DavidsonCache{T, R} <: Cache where {T<:AllowedTypes,
 end
 
 """
-    workarrays(T, matdim, blocksize, maxvec)
+    davidson_workarrays(T, matdim, blocksize, maxvec)
 
 Constructs the `Twork` and `Rwork` work arrays required to make the
 in-place `solver!` function allocation-free.
@@ -137,14 +139,14 @@ in-place `solver!` function allocation-free.
 
 # Return values
 
-The return value is of the form `Twork, Rwork = workarrays(…)`, where
+The return value is of the form `Twork, Rwork = davidson_workarrays(…)`, where
 
 * `Twork::Vector{T<:AllowedTypes}`
 * `Rwork::Vector{R<:AllowedFloat}`, where `R` is compatible with `T`
 
 """
-function workarrays(T::DataType, matdim::Int64, blocksize::Int64,
-                    maxvec::Int64)
+function davidson_workarrays(T::DataType, matdim::Int64,
+                             blocksize::Int64, maxvec::Int64)
 
     @assert T <: AllowedTypes
     
@@ -154,17 +156,18 @@ function workarrays(T::DataType, matdim::Int64, blocksize::Int64,
         R = Float64
     end
     
-    Tdim = Tworksize(matdim, blocksize, maxvec)
+    Tdim = davidson_Tworksize(matdim, blocksize, maxvec)
     Twork = Vector{T}(undef, Tdim)
     
-    Rdim = Rworksize(matdim, blocksize, maxvec)
+    Rdim = davidson_Rworksize(matdim, blocksize, maxvec)
     Rwork = Vector{R}(undef, Rdim)
     
     return Twork, Rwork
     
 end
 
-function Tworksize(matdim::Int64, blocksize::Int64, maxvec::Int64)
+function davidson_Tworksize(matdim::Int64, blocksize::Int64,
+                            maxvec::Int64)
 
     dim = 0
     
@@ -199,7 +202,8 @@ function Tworksize(matdim::Int64, blocksize::Int64, maxvec::Int64)
     
 end
 
-function Rworksize(matdim::Int64, blocksize::Int64, maxvec::Int64)
+function davidson_Rworksize(matdim::Int64, blocksize::Int64,
+                            maxvec::Int64)
 
     dim = 0
     
@@ -220,7 +224,8 @@ function Rworksize(matdim::Int64, blocksize::Int64, maxvec::Int64)
     
 end
 
-function Twork_offsets(matdim::Int64, blocksize::Int64, maxvec::Int64)
+function davidson_Twork_offsets(matdim::Int64, blocksize::Int64,
+                                maxvec::Int64)
 
     lwork = 3 * maxvec
     
@@ -253,7 +258,8 @@ function Twork_offsets(matdim::Int64, blocksize::Int64, maxvec::Int64)
     
 end
 
-function Rwork_offsets(matdim::Int64, blocksize::Int64, maxvec::Int64)
+function davidson_Rwork_offsets(matdim::Int64, blocksize::Int64,
+                                maxvec::Int64)
 
     lwork = 3 * maxvec
 

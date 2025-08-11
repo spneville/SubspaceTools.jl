@@ -35,11 +35,12 @@ export solver, solver!
 export DavidsonCache
 export EigenPairs
 export ConvInfo
-export workarrays
+export davidson_workarrays
 
 # SIL
 export sil!
 export SILCache
+export sil_workarrays
 
 include("wrapper.jl")
 include("davidson/cache.jl")

@@ -58,7 +58,7 @@ function solver(f::Function,
     T <: Allowed64 ? R = Float64 : R = Float32
     
     # Work arrays
-    Twork, Rwork = workarrays(T, matdim, blocksize, maxvec)
+    Twork, Rwork = davidson_workarrays(T, matdim, blocksize, maxvec)
     
     # EigenPair result
     eigenpairs = EigenPairs{T, R}(nroots, matdim)
@@ -94,7 +94,7 @@ function solver!(vectors::AbstractMatrix{T},
                  guess=false,
                  kwargs...) where {T<:AllowedTypes, R<:AllowedFloat}
     
-    Twork, Rwork = workarrays(T, matdim, blocksize, maxvec)
+    Twork, Rwork = davidson_workarrays(T, matdim, blocksize, maxvec)
     
     convinfo = solver!(vectors, values, f, diag, nroots, matdim, Twork,
                        Rwork; tol=tol, blocksize=blocksize, maxvec=maxvec,
@@ -243,12 +243,12 @@ function checkinp(nroots::Int64, blocksize::Int64, maxvec::Int64,
     end
 
     # Work array dimensions
-    if size(Rwork)[1] < Rworksize(matdim, blocksize, maxvec)
+    if size(Rwork)[1] < davidson_Rworksize(matdim, blocksize, maxvec)
         @error "Rwork is not large enough"
         exit() 
     end
 
-    if size(Twork)[1] < Tworksize(matdim, blocksize, maxvec)
+    if size(Twork)[1] < davidson_Tworksize(matdim, blocksize, maxvec)
         @error "Twork is not large enough"
         exit()
     end
