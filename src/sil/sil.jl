@@ -2,7 +2,8 @@ function sil!(v::AbstractVector{T},
               Δt::Float64,
               ϵ::Float64,
               f::Function,
-              maxvec::Int64) where {T<:AllowedTypes}
+              maxvec::Int64;
+              kwargs...) where {T<:AllowedTypes}
 
     # Real type
     T <: Allowed64 ? R = Float64 : R = Float32
@@ -13,7 +14,7 @@ function sil!(v::AbstractVector{T},
     # Work arrays
     Twork, Rwork = sil_workarrays(T, matdim, maxvec)
 
-    sil!(v, Δt, ϵ, f, maxvec, Twork, Rwork)
+    sil!(v, Δt, ϵ, f, maxvec, Twork, Rwork; kwargs...)
     
 end
     
@@ -23,14 +24,13 @@ function sil!(v::AbstractVector{T},
               f::Function,
               maxvec::Int64,
               Twork::Vector{T},
-              Rwork::Vector{R}) where {T<:AllowedTypes, R<:AllowedFloat}
+              Rwork::Vector{R};
+              kwargs...) where {T<:AllowedTypes, R<:AllowedFloat}
+
 
     # Matrix dimension
     matdim = length(v)
 
-    # Work arrays
-    Twork, Rwork = sil_workarrays(T, matdim, maxvec)
-    
     # SIL cache
     cache = SILCache{T, R}(f, matdim, maxvec, ϵ, Twork, Rwork)
 
@@ -43,7 +43,7 @@ function sil!(v::AbstractVector{T},
         δ = Δt - t
     
         # Perform the Lanczos iterations
-        converged = lanczos_iterations(cache, v, δ)
+        converged = lanczos_iterations(cache, v, δ; kwargs...)
 
         # Compute F(A) * v
         δactual = Fv!(cache, v, converged, δ)
@@ -57,7 +57,8 @@ end
 
 function lanczos_iterations(cache::SILCache,
                             v::AbstractVector{T},
-                            δ::Float64) where {T<:AllowedTypes}
+                            δ::Float64;
+                            kwargs...) where {T<:AllowedTypes}
 
     # Lanczos iterations:
     # r := H qⱼ - βⱼ₋₁ qⱼ₋₁
@@ -82,13 +83,19 @@ function lanczos_iterations(cache::SILCache,
     
     # Iteration 1
     @views copy!(q[:,1], v)
-    @views f(q[:,1], r)
+
+    if haskey(kwargs, :data)
+        @views cache.f(q[:,1], r, kwargs[:data])
+    else
+        @views f(q[:,1], r)
+    end
+
     @views α[1] = dot(q[:,1], r)
     for i in 1:matdim
         @inbounds r[i] -= α[1] * q[i,1]
     end
     β[1] = sqrt(dot(r, r))
-
+    
     # Iterations 1,2,...
     Kdim = 0
     converged = false
@@ -99,12 +106,16 @@ function lanczos_iterations(cache::SILCache,
 
         # Next Lanczos vector
         for i in 1:matdim
-            q[i,j] = r[i] / β[j-1]
+            @inbounds q[i,j] = r[i] / β[j-1]
         end
 
         # Lanczos recursion
-        @views f(q[:,j], r)
-
+        if haskey(kwargs, :data)
+            @views cache.f(q[:,j], r, kwargs[:data])
+        else
+            @views f(q[:,j], r)
+        end
+        
         #accumulate_product!(U.r, U.q[j-1], -U.β[j-1])
         for i in 1:matdim
             @inbounds r[i] -= β[j-1] * q[i,j-1]
@@ -166,11 +177,11 @@ function Fv!(cache::SILCache, v::AbstractVector{T},
     G = Gmat(cache, 1:Kdim, 1:Kdim)
     fill!(G, 0.0)
     for i in 1:Kdim
-        G[i,i] = α[i]
+        @inbounds G[i,i] = α[i]
     end
     for i in 1:Kdim-1
-        G[i,i+1] = conj(β[i])
-        G[i+1,i] = β[i]
+        @inbounds G[i,i+1] = conj(β[i])
+        @inbounds G[i+1,i] = β[i]
     end
 
     # Diagonalise the subspace matrix
@@ -181,7 +192,6 @@ function Fv!(cache::SILCache, v::AbstractVector{T},
     # needed as the Lanczos representation of F(A)*v is the column
     # vector (1,0,…,0)ᵀ: this is also the Lanczos representation
     # of F(A)*v
-
     C = Fvcoeff(cache, 1:Kdim)
     fill!(C, 0.0)
 
