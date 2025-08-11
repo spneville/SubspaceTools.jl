@@ -30,16 +30,23 @@ abstract type Results end
 export AllowedTypes
 export AllowedFloat
 
+# Davidson
 export solver, solver!
 export DavidsonCache
 export EigenPairs
 export ConvInfo
 export workarrays
 
+# SIL
+export sil!
+export SILCache
+
 include("wrapper.jl")
 include("davidson/cache.jl")
 include("davidson/eigenpairs.jl")
 include("davidson/convinfo.jl")
 include("davidson/solver.jl")
+include("sil/cache.jl")
+include("sil/sil.jl")
 
 end
