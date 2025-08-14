@@ -19,7 +19,7 @@ function sil!(v::AbstractVector{T},
 end
     
 function sil!(v::AbstractVector{T},
-              Δt::Float64,
+              Δt1::Float64,
               ϵ::Float64,
               f::Function,
               maxvec::Int64,
@@ -27,7 +27,10 @@ function sil!(v::AbstractVector{T},
               Rwork::Vector{R};
               kwargs...) where {T<:AllowedTypes, R<:AllowedFloat}
 
-
+    # Absolute vale of the time step
+    Δt = abs(Δt1)
+    Δt1 < 0.0 ? backwards = true : backwards = false
+    
     # Matrix dimension
     matdim = length(v)
 
@@ -46,7 +49,7 @@ function sil!(v::AbstractVector{T},
         converged = lanczos_iterations(cache, v, δ; kwargs...)
 
         # Compute F(A) * v
-        δactual = Fv!(cache, v, converged, δ)
+        δactual = Fv!(cache, v, converged, δ, backwards)
 
         # Update the total time step
         t += δactual
@@ -150,7 +153,8 @@ function lanczos_iterations(cache::SILCache,
 end
 
 function Fv!(cache::SILCache, v::AbstractVector{T},
-             converged::Bool, δ::Float64) where {T<:AllowedTypes}
+             converged::Bool, δ::Float64,
+             backwards::Bool) where {T<:AllowedTypes}
 
     # Lanzcos subspace matrix:
     # Gᵢⱼ = qᵢ† A qⱼ
@@ -198,12 +202,15 @@ function Fv!(cache::SILCache, v::AbstractVector{T},
     U = eigvec(cache, 1:Kdim, 1:Kdim)
     λ = eigval(cache, 1:Kdim)
 
-    im_unit = -complex(0.0, 1.0)
+    if backwards a = complex(0.0, -1.0)
+    else
+        a = complex(0.0, 1.0)
+    end
     
     for i ∈ 1:Kdim
         for j ∈ 1:Kdim
-            C[i] += U[i,j] * U[1,j] *
-                exp(-im_unit * λ[j] * δactual)
+            C[i] += U[i,j] * conj(U[1,j]) *
+                exp(-a * λ[j] * δactual)
         end
     end
 
