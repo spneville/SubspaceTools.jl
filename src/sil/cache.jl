@@ -95,10 +95,11 @@ function sil_workarrays(T::DataType, matdim::Int64,
 
     Tdim = sil_Tworksize(matdim, maxvec)
     Twork = Vector{T}(undef, Tdim)
+    fill!(Twork, 0.0)
     
     Rdim = sil_Rworksize(maxvec)
-
     Rwork = Vector{R}(undef, Rdim)
+    fill!(Rwork, 0.0)
     
     return Twork, Rwork
     

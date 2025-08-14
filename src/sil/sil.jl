@@ -119,7 +119,6 @@ function lanczos_iterations(cache::SILCache,
             @views f(q[:,j], r)
         end
         
-        #accumulate_product!(U.r, U.q[j-1], -U.β[j-1])
         for i in 1:matdim
             @inbounds r[i] -= β[j-1] * q[i,j-1]
         end
@@ -202,7 +201,8 @@ function Fv!(cache::SILCache, v::AbstractVector{T},
     U = eigvec(cache, 1:Kdim, 1:Kdim)
     λ = eigval(cache, 1:Kdim)
 
-    if backwards a = complex(0.0, -1.0)
+    if backwards
+        a = complex(0.0, -1.0)
     else
         a = complex(0.0, 1.0)
     end
