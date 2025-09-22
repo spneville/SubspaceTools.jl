@@ -14,7 +14,9 @@ function sil!(v::AbstractVector{T},
     # Work arrays
     Twork, Rwork = sil_workarrays(T, matdim, maxvec)
 
-    sil!(v, Δt, ϵ, f, maxvec, Twork, Rwork; kwargs...)
+    nproducts = sil!(v, Δt, ϵ, f, maxvec, Twork, Rwork; kwargs...)
+
+    return nproducts
     
 end
     
@@ -37,6 +39,9 @@ function sil!(v::AbstractVector{T},
     # SIL cache
     cache = SILCache{T, R}(f, matdim, maxvec, ϵ, Twork, Rwork)
 
+    # Total number of matrix-vector products taken
+    nproducts = 0
+    
     # Perform SIL steps with an adaptive step size until
     # we reach a total time step of Δt
     t = 0.0
@@ -48,14 +53,19 @@ function sil!(v::AbstractVector{T},
         # Perform the Lanczos iterations
         converged = lanczos_iterations(cache, v, δ; kwargs...)
 
+        # Update the total number of matrix-vector products taken
+        nproducts += cache.Kdim
+        
         # Compute F(A) * v
         δactual = Fv!(cache, v, converged, δ, backwards)
 
         # Update the total time step
         t += δactual
-
-    end
         
+    end
+
+    return nproducts
+    
 end
 
 function lanczos_iterations(cache::SILCache,
