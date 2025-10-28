@@ -143,14 +143,10 @@ function lanczos_iterations(cache::SILCache,
 
         # Error estimate
         @views error = abs(prod(β[1:j]) / factorial(j+2) * δ^(j+2))
-        if error < ϵ
-            converged = true
-        end
+        if error < ϵ converged = true end
 
         # Exit if we have converged
-        if converged
-            break
-        end
+        if converged break end
         
     end
 
@@ -273,4 +269,57 @@ function subspace_diag(cache::SILCache{T}) where T<:AllowedComplex
     # Call to ?heev
     heev!(jobz, uplo, n, U, lda, λ, work, lwork, rwork, info)
     
+end
+
+function improved_sil_error(K::Int64, α::AbstractVector{ComplexF64},
+                            β::AbstractVector{ComplexF64}, Δt::Float64)
+
+    h = Matrix{ComplexF64}(undef, K, K)
+    h1 = Matrix{ComplexF64}(undef, K+1, K+1)
+    C = Vector{ComplexF64}(undef, K+1)
+    C1 = Vector{ComplexF64}(undef, K+1)
+    
+    # Projection of the Hamiltonian onto the order-K Krylov subspace
+    fill!(h, 0.0)
+    for i ∈ 1:K
+        h[i,i] = α[i]
+        if i < K
+            h[i,i+1] = conj(β[i])
+            h[i+1,i] = β[i]
+        end
+    end
+            
+    # Projection of the Hamiltonian onto the approximate order-(K+1)
+    # Krylov subspace
+    fill!(h1, 0.0)
+    h1[1:K,1:K] = h[1:K,1:K]
+    h1[K+1,K+1] = α[K]
+    h1[K,K+1] = conj(β[K])
+    h1[K+1,K] = β[K]
+    
+    # Diagonalise the order-K and order-(K+1) Hamiltonians
+    F = eigen(h)
+    F1 = eigen(h1)
+
+    # Representations of the order-K and order-(K+1) propagated
+    # wave function
+    fill!(C, 0.0)
+    fill!(C1, 0.0)
+    a = complex(0.0, 1.0)
+    for i ∈ 1:K+1
+        for j ∈ 1:K+1
+            if i <= K && j <= K
+                C[i] += F.vectors[i,j] * F.vectors[1,j] *
+                    exp(-a * F.values[j] * Δt)
+            end
+            C1[i] += F1.vectors[i,j] * F1.vectors[1,j] *
+                exp(-a * F1.values[j] * Δt)
+        end
+    end
+
+    # Approximate error
+    error = abs(sqrt(dot(C1-C, C1-C)))
+    
+    return error
+        
 end
